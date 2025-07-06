@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/prove-interaction",
+      "destination": "http://95.111.225.16:3001/prove-interaction"
+    },
+    {
+      "source": "/api/prove-final",
+      "destination": "http://95.111.225.16:3001/prove-final"
+    }
+  ]
+}

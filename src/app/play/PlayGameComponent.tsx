@@ -110,7 +110,7 @@ export default function PlayGameComponent() {
     setFinalProofStatus("🔮 Proving your final score...")
 
     try {
-      const res = await fetch("http://95.111.225.16:3001/prove-final", {
+      const res = await fetch("/api/prove-final", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, finalPoint: score }),
@@ -230,7 +230,7 @@ export default function PlayGameComponent() {
     // Notifikasi + fetch interaction
     if (username && direction) {
       setMoveStatus("🔮 Proving your move...")
-      fetch("http://95.111.225.16:3001/prove-interaction", {
+      fetch("http://api/prove-interaction", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
