@@ -230,7 +230,7 @@ export default function PlayGameComponent() {
     // Notifikasi + fetch interaction
     if (username && direction) {
       setMoveStatus("🔮 Proving your move...")
-      fetch("http://api/prove-interaction", {
+      fetch("/api/prove-interaction", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
