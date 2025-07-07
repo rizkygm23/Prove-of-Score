@@ -1,58 +1,70 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useEffect, useState } from "react"
-import { useSearchParams } from "next/navigation"
-import { supabase } from "@/libs/supabase"
-import Link from "next/link"
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { supabase } from "@/libs/supabase";
+import Link from "next/link";
 
 export default function PlayGameComponent() {
-  const [grid, setGrid] = useState<number[][]>([])
-  const [gameOver, setGameOver] = useState(false)
-  const [score, setScore] = useState(0)
-  const [username, setUsername] = useState("")
-  const [moveStatus, setMoveStatus] = useState("")
-  const [showFinalProofModal, setShowFinalProofModal] = useState(false)
-  const [finalProofStatus, setFinalProofStatus] = useState("")
-  const [proofHash, setProofHash] = useState("")
-  const [savedToDatabase, setSavedToDatabase] = useState(false)
-  const searchParams = useSearchParams()
-  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null)
-  const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null)
+  const [grid, setGrid] = useState<number[][]>([]);
+  const [gameOver, setGameOver] = useState(false);
+  const [score, setScore] = useState(0);
+  const [username, setUsername] = useState("");
+  const [moveStatus, setMoveStatus] = useState("");
+  const [showFinalProofModal, setShowFinalProofModal] = useState(false);
+  const [finalProofStatus, setFinalProofStatus] = useState("");
+  const [proofHash, setProofHash] = useState("");
+  const [savedToDatabase, setSavedToDatabase] = useState(false);
+  const searchParams = useSearchParams();
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(
+    null
+  );
+  const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(
+    null
+  );
 
   useEffect(() => {
-    const initialUsername = searchParams.get("username")
-    if (initialUsername) setUsername(initialUsername)
-  }, [searchParams])
+    const initialUsername = searchParams.get("username");
+    if (initialUsername) setUsername(initialUsername);
+  }, [searchParams]);
 
   useEffect(() => {
-    initGame()
-  }, [])
+    initGame();
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      handleMove(e.key)
-    }
+      // Prevent default arrow key behavior (page scrolling)
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        e.preventDefault();
+      }
+      handleMove(e.key);
+    };
 
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [grid, gameOver, score, username])
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [grid, gameOver, score, username]);
 
   // --- Save to Supabase with Update Logic ---
-  const saveToSupabase = async (username: string, proofHash: string, topScore: number) => {
+  const saveToSupabase = async (
+    username: string,
+    proofHash: string,
+    topScore: number
+  ) => {
     try {
       // First, check if user already exists
       const { data: existingData, error: fetchError } = await supabase
         .from("succinct2048")
         .select("*")
         .eq("username", username)
-        .single()
+        .single();
 
       if (fetchError && fetchError.code !== "PGRST116") {
         // PGRST116 is "not found" error, which is expected for new users
-        console.error("Error checking existing data:", fetchError)
-        return false
+        console.error("Error checking existing data:", fetchError);
+        return false;
       }
 
       if (existingData) {
@@ -66,19 +78,21 @@ export default function PlayGameComponent() {
               top_score: topScore,
               created_at: new Date().toISOString(), // Update timestamp to latest achievement
             })
-            .eq("username", username)
+            .eq("username", username);
 
           if (error) {
-            console.error("Supabase update error:", error)
-            return false
+            console.error("Supabase update error:", error);
+            return false;
           }
 
-          console.log("✅ Score updated in Supabase:", data)
-          return true
+          console.log("✅ Score updated in Supabase:", data);
+          return true;
         } else {
           // New score is not higher, don't save but return success
-          console.log("🔄 Score not higher than existing, keeping previous record")
-          return true
+          console.log(
+            "🔄 Score not higher than existing, keeping previous record"
+          );
+          return true;
         }
       } else {
         // User doesn't exist, create new record
@@ -89,147 +103,159 @@ export default function PlayGameComponent() {
             top_score: topScore,
             created_at: new Date().toISOString(),
           },
-        ])
+        ]);
 
         if (error) {
-          console.error("Supabase insert error:", error)
-          return false
+          console.error("Supabase insert error:", error);
+          return false;
         }
 
-        console.log("✅ New record created in Supabase:", data)
-        return true
+        console.log("✅ New record created in Supabase:", data);
+        return true;
       }
     } catch (err) {
-      console.error("❌ Failed to save to Supabase:", err)
-      return false
+      console.error("❌ Failed to save to Supabase:", err);
+      return false;
     }
-  }
+  };
 
   // --- Prove Final Point Handler ---
   const handleProveFinal = async () => {
-    setFinalProofStatus("🔮 Proving your final score...")
+    setFinalProofStatus("🔮 Proving your final score...");
 
     try {
       const res = await fetch("/api/prove-final", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, finalPoint: score }),
-      })
+      });
 
-      if (!res.ok) throw new Error("Final proof failed")
+      if (!res.ok) throw new Error("Final proof failed");
 
-      const data = await res.json()
-      const fullProofHash = data.proof_hash || "generated_hash"
+      const data = await res.json();
+      const fullProofHash = data.proof_hash || "generated_hash";
 
-      setProofHash(fullProofHash)
-      setFinalProofStatus(`🎉 Final proved! Hash: ${fullProofHash.substring(0, 8)}...`)
+      setProofHash(fullProofHash);
+      setFinalProofStatus(
+        `🎉 Final proved! Hash: ${fullProofHash.substring(0, 8)}...`
+      );
 
       // Check existing score before saving
-      setFinalProofStatus(`💾 Checking leaderboard...`)
+      setFinalProofStatus(`💾 Checking leaderboard...`);
 
       const { data: existingData } = await supabase
         .from("succinct2048")
         .select("top_score")
         .eq("username", username)
-        .single()
+        .single();
 
-      const isNewRecord = !existingData || score > existingData.top_score
+      const isNewRecord = !existingData || score > existingData.top_score;
 
-      const saveSuccess = await saveToSupabase(username, fullProofHash, score)
+      const saveSuccess = await saveToSupabase(username, fullProofHash, score);
 
       if (saveSuccess) {
-        setSavedToDatabase(true)
+        setSavedToDatabase(true);
         if (isNewRecord) {
-          setFinalProofStatus(`🎉 New personal record! Hash: ${fullProofHash.substring(0, 8)}...`)
+          setFinalProofStatus(
+            `🎉 New personal record! Hash: ${fullProofHash.substring(0, 8)}...`
+          );
         } else {
           setFinalProofStatus(
-            `✅ Score verified! Previous record maintained. Hash: ${fullProofHash.substring(0, 8)}...`,
-          )
+            `✅ Score verified! Previous record maintained. Hash: ${fullProofHash.substring(
+              0,
+              8
+            )}...`
+          );
         }
       } else {
-        setFinalProofStatus(`⚠️ Proof completed but save failed. Hash: ${fullProofHash.substring(0, 8)}...`)
+        setFinalProofStatus(
+          `⚠️ Proof completed but save failed. Hash: ${fullProofHash.substring(
+            0,
+            8
+          )}...`
+        );
       }
     } catch (err) {
-      setFinalProofStatus("❌ Final proof failed")
-      console.error("Final proof error:", err)
+      setFinalProofStatus("❌ Final proof failed");
+      console.error("Final proof error:", err);
     }
-  }
+  };
 
   // --- TOUCH/SWIPE HANDLERS ---
   const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null) // Reset touchEnd
+    setTouchEnd(null); // Reset touchEnd
     setTouchStart({
       x: e.targetTouches[0].clientX,
       y: e.targetTouches[0].clientY,
-    })
-  }
+    });
+  };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     setTouchEnd({
       x: e.targetTouches[0].clientX,
       y: e.targetTouches[0].clientY,
-    })
-  }
+    });
+  };
 
   const handleTouchEnd = () => {
-    if (!touchStart || !touchEnd) return
+    if (!touchStart || !touchEnd) return;
 
-    const distanceX = touchStart.x - touchEnd.x
-    const distanceY = touchStart.y - touchEnd.y
-    const isLeftSwipe = distanceX > 50
-    const isRightSwipe = distanceX < -50
-    const isUpSwipe = distanceY > 50
-    const isDownSwipe = distanceY < -50
+    const distanceX = touchStart.x - touchEnd.x;
+    const distanceY = touchStart.y - touchEnd.y;
+    const isLeftSwipe = distanceX > 50;
+    const isRightSwipe = distanceX < -50;
+    const isUpSwipe = distanceY > 50;
+    const isDownSwipe = distanceY < -50;
 
     // Determine swipe direction (prioritize the larger distance)
     if (Math.abs(distanceX) > Math.abs(distanceY)) {
       // Horizontal swipe
       if (isLeftSwipe) {
-        handleMove("ArrowLeft")
+        handleMove("ArrowLeft");
       } else if (isRightSwipe) {
-        handleMove("ArrowRight")
+        handleMove("ArrowRight");
       }
     } else {
       // Vertical swipe
       if (isUpSwipe) {
-        handleMove("ArrowUp")
+        handleMove("ArrowUp");
       } else if (isDownSwipe) {
-        handleMove("ArrowDown")
+        handleMove("ArrowDown");
       }
     }
-  }
+  };
 
   const handleMove = (key: string) => {
-    if (gameOver) return
+    if (gameOver) return;
 
-    let direction = ""
-    let newGrid = [...grid]
-    let newScore = score
+    let direction = "";
+    let newGrid = [...grid];
+    let newScore = score;
 
     switch (key) {
       case "ArrowUp":
-        direction = "up"
-        ;[newGrid, newScore] = moveUp(newGrid, newScore)
-        break
+        direction = "up";
+        [newGrid, newScore] = moveUp(newGrid, newScore);
+        break;
       case "ArrowDown":
-        direction = "down"
-        ;[newGrid, newScore] = moveDown(newGrid, newScore)
-        break
+        direction = "down";
+        [newGrid, newScore] = moveDown(newGrid, newScore);
+        break;
       case "ArrowLeft":
-        direction = "left"
-        ;[newGrid, newScore] = moveLeft(newGrid, newScore)
-        break
+        direction = "left";
+        [newGrid, newScore] = moveLeft(newGrid, newScore);
+        break;
       case "ArrowRight":
-        direction = "right"
-        ;[newGrid, newScore] = moveRight(newGrid, newScore)
-        break
+        direction = "right";
+        [newGrid, newScore] = moveRight(newGrid, newScore);
+        break;
       default:
-        return
+        return;
     }
 
     // Notifikasi + fetch interaction
     if (username && direction) {
-      setMoveStatus("🔮 Proving your move...")
+      setMoveStatus("🔮 Proving your move...");
       fetch("/api/prove-interaction", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -240,136 +266,140 @@ export default function PlayGameComponent() {
         }),
       })
         .then(async (res) => {
-          if (!res.ok) throw new Error("Prove interaction failed")
-          const data = await res.json()
-          setMoveStatus(`✨ Move proved! Hash: ${data.proof_hash?.substring(0, 16) || "-"}...`)
+          if (!res.ok) throw new Error("Prove interaction failed");
+          const data = await res.json();
+          setMoveStatus(
+            `✨ Move proved! Hash: ${
+              data.proof_hash?.substring(0, 16) || "-"
+            }...`
+          );
         })
         .catch((err) => {
-          setMoveStatus("❌ Move failed")
-          console.error("Interaction error:", err)
-        })
+          setMoveStatus("❌ Move failed");
+          console.error("Interaction error:", err);
+        });
     }
 
-    setGrid(newGrid)
-    setScore(newScore)
+    setGrid(newGrid);
+    setScore(newScore);
 
     if (isGameOver(newGrid)) {
-      setGameOver(true)
-      setShowFinalProofModal(true)
+      setGameOver(true);
+      setShowFinalProofModal(true);
     }
-  }
+  };
 
   // --- GAME LOGIC ---
   function initGame() {
     const emptyGrid = Array(4)
       .fill(0)
-      .map(() => Array(4).fill(0))
-    addRandomTile(emptyGrid)
-    addRandomTile(emptyGrid)
-    setGrid(emptyGrid)
-    setScore(0)
-    setGameOver(false)
-    setMoveStatus("")
-    setShowFinalProofModal(false)
-    setFinalProofStatus("")
-    setProofHash("")
-    setSavedToDatabase(false)
+      .map(() => Array(4).fill(0));
+    addRandomTile(emptyGrid);
+    addRandomTile(emptyGrid);
+    setGrid(emptyGrid);
+    setScore(0);
+    setGameOver(false);
+    setMoveStatus("");
+    setShowFinalProofModal(false);
+    setFinalProofStatus("");
+    setProofHash("");
+    setSavedToDatabase(false);
   }
 
   function addRandomTile(grid: number[][]) {
-    const emptyCells = []
+    const emptyCells = [];
     for (let row = 0; row < 4; row++) {
       for (let col = 0; col < 4; col++) {
-        if (grid[row][col] === 0) emptyCells.push([row, col])
+        if (grid[row][col] === 0) emptyCells.push([row, col]);
       }
     }
-    if (emptyCells.length === 0) return
-    const [r, c] = emptyCells[Math.floor(Math.random() * emptyCells.length)]
-    grid[r][c] = Math.random() < 0.9 ? 2 : 4
+    if (emptyCells.length === 0) return;
+    const [r, c] = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+    grid[r][c] = Math.random() < 0.9 ? 2 : 4;
   }
 
   function isGameOver(grid: number[][]): boolean {
     for (let row = 0; row < 4; row++) {
       for (let col = 0; col < 4; col++) {
-        if (grid[row][col] === 0) return false
-        if (col < 3 && grid[row][col] === grid[row][col + 1]) return false
-        if (row < 3 && grid[row][col] === grid[row + 1][col]) return false
+        if (grid[row][col] === 0) return false;
+        if (col < 3 && grid[row][col] === grid[row][col + 1]) return false;
+        if (row < 3 && grid[row][col] === grid[row + 1][col]) return false;
       }
     }
-    return true
+    return true;
   }
 
   function compress(row: number[]) {
-    const newRow = row.filter((val) => val !== 0)
-    while (newRow.length < 4) newRow.push(0)
-    return newRow
+    const newRow = row.filter((val) => val !== 0);
+    while (newRow.length < 4) newRow.push(0);
+    return newRow;
   }
 
   function merge(row: number[], score: number): [number[], number] {
     for (let i = 0; i < 3; i++) {
       if (row[i] !== 0 && row[i] === row[i + 1]) {
-        row[i] *= 2
-        score += row[i]
-        row[i + 1] = 0
+        row[i] *= 2;
+        score += row[i];
+        row[i + 1] = 0;
       }
     }
-    return [row, score]
+    return [row, score];
   }
 
   function moveLeft(grid: number[][], score: number): [number[][], number] {
-    const newGrid = grid.map((row) => [...row])
+    const newGrid = grid.map((row) => [...row]);
     for (let i = 0; i < 4; i++) {
-      let row = compress(newGrid[i])
-      ;[row, score] = merge(row, score)
-      row = compress(row)
-      newGrid[i] = row
+      let row = compress(newGrid[i]);
+      [row, score] = merge(row, score);
+      row = compress(row);
+      newGrid[i] = row;
     }
-    addRandomTile(newGrid)
-    return [newGrid, score]
+    addRandomTile(newGrid);
+    return [newGrid, score];
   }
 
   function moveRight(grid: number[][], score: number): [number[][], number] {
-    let newGrid = grid.map((row) => [...row].reverse())
+    let newGrid = grid.map((row) => [...row].reverse());
     for (let i = 0; i < 4; i++) {
-      let row = compress(newGrid[i])
-      ;[row, score] = merge(row, score)
-      row = compress(row)
-      newGrid[i] = row
+      let row = compress(newGrid[i]);
+      [row, score] = merge(row, score);
+      row = compress(row);
+      newGrid[i] = row;
     }
-    newGrid = newGrid.map((row) => row.reverse())
-    addRandomTile(newGrid)
-    return [newGrid, score]
+    newGrid = newGrid.map((row) => row.reverse());
+    addRandomTile(newGrid);
+    return [newGrid, score];
   }
 
   function moveUp(grid: number[][], score: number): [number[][], number] {
-    const newGrid = [...grid]
+    const newGrid = [...grid];
     for (let col = 0; col < 4; col++) {
-      let colVals = newGrid.map((row) => row[col])
-      colVals = compress(colVals)
-      ;[colVals, score] = merge(colVals, score)
-      colVals = compress(colVals)
+      let colVals = newGrid.map((row) => row[col]);
+      colVals = compress(colVals);
+      [colVals, score] = merge(colVals, score);
+      colVals = compress(colVals);
       for (let row = 0; row < 4; row++) {
-        newGrid[row][col] = colVals[row]
+        newGrid[row][col] = colVals[row];
       }
     }
-    addRandomTile(newGrid)
-    return [newGrid, score]
+    addRandomTile(newGrid);
+    return [newGrid, score];
   }
 
   function moveDown(grid: number[][], score: number): [number[][], number] {
-    const newGrid = [...grid]
+    const newGrid = [...grid];
     for (let col = 0; col < 4; col++) {
-      let colVals = newGrid.map((row) => row[col]).reverse()
-      colVals = compress(colVals)
-      ;[colVals, score] = merge(colVals, score)
-      colVals = compress(colVals)
-      colVals.reverse()
+      let colVals = newGrid.map((row) => row[col]).reverse();
+      colVals = compress(colVals);
+      [colVals, score] = merge(colVals, score);
+      colVals = compress(colVals);
+      colVals.reverse();
       for (let row = 0; row < 4; row++) {
-        newGrid[row][col] = colVals[row]
+        newGrid[row][col] = colVals[row];
       }
     }
-    addRandomTile(newGrid)
-    return [newGrid, score]
+    addRandomTile(newGrid);
+    return [newGrid, score];
   }
 
   // Get tile styling based on value
@@ -386,8 +416,11 @@ export default function PlayGameComponent() {
       512: "bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-xl",
       1024: "bg-gradient-to-br from-red-400 to-red-600 text-white shadow-xl",
       2048: "bg-gradient-to-br from-gradient-to-br from-yellow-300 via-pink-300 to-purple-400 text-white shadow-2xl animate-pulse",
-    }
-    return styles[value] || "bg-gradient-to-br from-gray-600 to-gray-800 text-white shadow-2xl"
+    };
+    return (
+      styles[value] ||
+      "bg-gradient-to-br from-gray-600 to-gray-800 text-white shadow-2xl"
+    );
   }
 
   return (
@@ -412,8 +445,34 @@ export default function PlayGameComponent() {
           </div>
         </div>
 
+        {/* Watermark */}
+        <div className="bg-gradient-to-r from-purple-100/50 to-pink-100/50 backdrop-blur-sm rounded-2xl shadow-lg p-4 mb-6 border border-purple-200/30">
+          <div className="text-center">
+            <div className="text-lg mb-2">👨‍💻</div>
+            <p className="text-xs text-gray-600 mb-3 font-medium">Created by</p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 text-sm">
+              <div className="flex items-center gap-2 bg-white/60 backdrop-blur-sm rounded-xl px-3 py-2 shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105">
+                <div className="w-4 h-4 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-sm flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">D</span>
+                </div>
+                <span className="font-medium text-gray-700">rizzgm</span>
+              </div>
+              <div className="flex items-center gap-2 bg-white/60 backdrop-blur-sm rounded-xl px-3 py-2 shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105">
+                <div className="w-4 h-4 bg-gradient-to-r from-blue-400 to-blue-600 rounded-sm flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">𝕏</span>
+                </div>
+                <span className="font-medium text-gray-700">RizzDroop23</span>
+              </div>
+            </div>
+            <div className="mt-3 text-xs text-gray-500 flex items-center justify-center gap-1">
+              <span>⚡</span>
+              <span>Powered by Zero-Knowledge Technology</span>
+            </div>
+          </div>
+        </div>
+
         {/* User Input */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 mb-6">
+        {/* <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 mb-6">
           <div className="flex items-center gap-2 mb-4">
             <span className="text-2xl">🎮</span>
             <span className="font-medium text-gray-700">Player Info</span>
@@ -435,7 +494,7 @@ export default function PlayGameComponent() {
               />
             </div>
           </div>
-        </div>
+        </div> */}
 
         {/* Score Display */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 mb-6">
@@ -450,13 +509,6 @@ export default function PlayGameComponent() {
           </div>
         </div>
 
-        {/* Move Status */}
-        {moveStatus && (
-          <div className="bg-gradient-to-r from-[#FE11C5]/10 to-purple-100 rounded-xl p-4 mb-6 border border-[#FE11C5]/20">
-            <div className="text-center text-sm font-medium text-[#FE11C5]">{moveStatus}</div>
-          </div>
-        )}
-
         {/* Game Grid */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 mb-6">
           <div
@@ -470,15 +522,25 @@ export default function PlayGameComponent() {
                 <div
                   key={`${i}-${j}`}
                   className={`aspect-square flex items-center justify-center text-lg font-bold rounded-xl transition-all duration-200 ${
-                    val !== 0 ? `${getTileStyle(val)} hover:scale-105` : "bg-white/60 text-gray-300 shadow-inner"
+                    val !== 0
+                      ? `${getTileStyle(val)} hover:scale-105`
+                      : "bg-white/60 text-gray-300 shadow-inner"
                   }`}
                 >
                   {val !== 0 ? val : ""}
                 </div>
-              )),
+              ))
             )}
           </div>
         </div>
+        {/* Move Status */}
+        {moveStatus && (
+          <div className="bg-gradient-to-r from-[#FE11C5]/10 to-purple-100 rounded-xl p-4 mb-6 border border-[#FE11C5]/20">
+            <div className="text-center text-sm font-medium text-[#FE11C5]">
+              {moveStatus}
+            </div>
+          </div>
+        )}
 
         {/* Game Over Status */}
         {gameOver && (
@@ -486,7 +548,9 @@ export default function PlayGameComponent() {
             <div className="text-center">
               <span className="text-2xl mb-2 block">😅</span>
               <p className="text-red-700 font-bold">Game Over!</p>
-              <p className="text-sm text-red-600">Final Score: {score.toLocaleString()}</p>
+              <p className="text-sm text-red-600">
+                Final Score: {score.toLocaleString()}
+              </p>
             </div>
           </div>
         )}
@@ -499,7 +563,9 @@ export default function PlayGameComponent() {
             <span className="sm:hidden">Swipe to move tiles</span>
             <span className="hidden sm:inline"> to play</span>
           </p>
-          <p className="text-xs text-gray-500">Combine tiles to reach 2048! 🚀</p>
+          <p className="text-xs text-gray-500">
+            Combine tiles to reach 2048! 🚀
+          </p>
           <div className="mt-3 flex justify-center gap-4 text-xs text-gray-400">
             <span className="hidden sm:inline">⌨️ Keyboard</span>
             <span className="sm:hidden">👆 Swipe gestures</span>
@@ -521,22 +587,30 @@ export default function PlayGameComponent() {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center transform scale-100 transition-transform">
             <div className="text-6xl mb-4">🎉</div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Amazing Game!</h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">
+              Amazing Game!
+            </h2>
             <p className="text-gray-600 mb-6">
-              Let's prove your final score of <span className="font-bold text-[#FE11C5]">{score.toLocaleString()}</span>{" "}
+              Let's prove your final score of{" "}
+              <span className="font-bold text-[#FE11C5]">
+                {score.toLocaleString()}
+              </span>{" "}
               points!
             </p>
 
             <button
               onClick={handleProveFinal}
-              disabled={finalProofStatus.includes("proved") || finalProofStatus.includes("completed")}
+              disabled={
+                finalProofStatus.includes("proved") ||
+                finalProofStatus.includes("completed")
+              }
               className="w-full bg-gradient-to-r from-[#FE11C5] to-purple-600 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none mb-4"
             >
               {finalProofStatus.includes("completed")
                 ? "✅ Completed!"
                 : finalProofStatus.includes("proved")
-                  ? "✅ Proved!"
-                  : "🔮 Prove Final Score"}
+                ? "✅ Proved!"
+                : "🔮 Prove Final Score"}
             </button>
 
             {savedToDatabase && (
@@ -548,11 +622,15 @@ export default function PlayGameComponent() {
               </div>
             )}
 
-            {(finalProofStatus.includes("proved") || finalProofStatus.includes("completed")) && (
+            {(finalProofStatus.includes("proved") ||
+              finalProofStatus.includes("completed")) && (
               <>
                 <a
                   href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(
-                    `🎮 Just crushed 2048 ZK Game! 🚀\n\n🏆 Final Score: ${score.toLocaleString()} points\n🔐 Cryptographically Verified with Zero-Knowledge Proof!\n\n✨ Proof Hash: ${proofHash.substring(0, 16)}...\n\n🎯 Think you can beat my score? Try the ZK-powered 2048!\n\n#ZKProof #Web3Gaming #2048Challenge #ZeroKnowledge`,
+                    `🎮 Just crushed 2048 ZK Game! 🚀\n\n🏆 Final Score: ${score.toLocaleString()} points\n🔐 Cryptographically Verified with Zero-Knowledge Proof!\n\n✨ Proof Hash: ${proofHash.substring(
+                      0,
+                      16
+                    )}...\n\n🎯 Think you can beat my score? Try the ZK-powered 2048!\n\n#ZKProof #Web3Gaming #2048Challenge #ZeroKnowledge`
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -574,7 +652,9 @@ export default function PlayGameComponent() {
 
             {finalProofStatus && (
               <div className="bg-gradient-to-r from-[#FE11C5]/10 to-purple-100 rounded-xl p-4 mb-4 border border-[#FE11C5]/20">
-                <div className="text-sm font-medium text-[#FE11C5]">{finalProofStatus}</div>
+                <div className="text-sm font-medium text-[#FE11C5]">
+                  {finalProofStatus}
+                </div>
               </div>
             )}
 
@@ -588,5 +668,5 @@ export default function PlayGameComponent() {
         </div>
       )}
     </div>
-  )
+  );
 }
